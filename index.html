@@ -196,6 +196,65 @@
   #loader.visible { display: flex; }
   .spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 12px; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── CRACK DETECTION ──────────────────────────── */
+  .crack-run-btn {
+    width: 100%; padding: 10px; margin-top: 4px;
+    border: 1px solid var(--accent2); background: rgba(255,68,68,0.06);
+    color: var(--accent2); font-family: var(--mono); font-size: 11px;
+    letter-spacing: 2px; text-transform: uppercase; cursor: pointer;
+    border-radius: 3px; transition: all 0.2s; display: flex;
+    align-items: center; justify-content: center; gap: 8px;
+  }
+  .crack-run-btn:hover { background: rgba(255,68,68,0.15); }
+  .crack-run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .crack-run-btn.running { border-color: var(--accent); color: var(--accent); background: rgba(0,229,255,0.06); }
+
+  .crack-results {
+    background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+    border-radius: 4px; overflow: hidden;
+    display: none;
+  }
+  .crack-results.visible { display: block; }
+  .crack-summary {
+    padding: 8px 10px; font-family: var(--mono); font-size: 10px;
+    border-bottom: 1px solid var(--border); display: flex; justify-content: space-between;
+    align-items: center;
+  }
+  .crack-summary .cnt { color: var(--accent2); font-size: 14px; font-weight: bold; }
+  .crack-summary .clr {
+    color: var(--text-dim); cursor: pointer; padding: 2px 6px;
+    border: 1px solid var(--border); border-radius: 2px; font-size: 9px;
+    transition: all 0.15s;
+  }
+  .crack-summary .clr:hover { color: var(--accent); border-color: var(--accent); }
+
+  .crack-list { max-height: 220px; overflow-y: auto; }
+  .crack-item {
+    padding: 7px 10px; border-bottom: 1px solid rgba(30,38,48,0.6);
+    cursor: pointer; transition: background 0.1s; display: flex; gap: 8px;
+    align-items: flex-start;
+  }
+  .crack-item:hover { background: rgba(255,255,255,0.03); }
+  .crack-item:last-child { border-bottom: none; }
+  .crack-item.selected { background: rgba(0,229,255,0.06); }
+  .crack-badge {
+    width: 20px; height: 20px; border-radius: 2px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 9px; font-weight: bold; color: #000;
+  }
+  .crack-badge.sev-low    { background: #f5c542; }
+  .crack-badge.sev-medium { background: #f58a00; }
+  .crack-badge.sev-high   { background: #ff3333; }
+  .crack-item-info { flex: 1; min-width: 0; }
+  .crack-item-info .ci-main { font-family: var(--mono); font-size: 10px; color: var(--text); line-height: 1.5; }
+  .crack-item-info .ci-sub  { font-family: var(--mono); font-size: 9px; color: var(--text-dim); line-height: 1.5; }
+
+  /* overlay canvas sits on top of mainCanvas */
+  #overlayCanvas {
+    position: absolute; top: 0; left: 0;
+    pointer-events: none; image-rendering: pixelated;
+  }
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
@@ -252,8 +311,10 @@
       </label>
       <div class="btn-group">
         <button class="btn danger" id="btn-invert" onclick="toggleInvert()">Invert</button>
+        <button class="btn success" id="btn-auto" onclick="autoOptimize()" title="Automatisch beste filters bepalen via histogram analyse">Auto</button>
         <button class="btn" onclick="resetFilters()">Reset</button>
       </div>
+      <div id="auto-info" style="font-family:var(--mono);font-size:9px;color:var(--text-dim);line-height:1.6;display:none;margin-top:4px;padding:6px 8px;background:rgba(57,255,20,0.05);border:1px solid rgba(57,255,20,0.15);border-radius:3px;"></div>
     </div>
   </div>
 
@@ -299,6 +360,41 @@
       Sneltoetsen: 1-4 modus | M vergrootglas | +/- scroll zoom | F passend
     </div>
   </div>
+
+  <div id="crack-section">
+    <div class="section-title">Scheurdetectie</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <label class="ctrl">
+        <div class="lbl">Min. lengte <span id="val-minlen">40</span> px</div>
+        <input type="range" id="crack-minlen" min="5" max="300" value="40">
+      </label>
+      <label class="ctrl">
+        <div class="lbl">Min. aspect ratio <span id="val-minaspect">3.0</span></div>
+        <input type="range" id="crack-minaspect" min="10" max="100" value="30">
+      </label>
+      <label class="ctrl">
+        <div class="lbl">Doos dikte <span id="val-boxpad">4</span> px</div>
+        <input type="range" id="crack-boxpad" min="1" max="20" value="4">
+      </label>
+      <button class="crack-run-btn" id="crack-run-btn" onclick="detectCracks()">
+        <span id="crack-btn-label">&#9654; Analyseer scheuren</span>
+      </button>
+    </div>
+
+    <div class="crack-results" id="crack-results" style="margin-top:10px;">
+      <div class="crack-summary">
+        <div><span class="cnt" id="crack-count">0</span> <span style="color:var(--text-dim);font-size:10px;">kandidaten</span></div>
+        <div class="clr" onclick="clearCracks()">Wis</div>
+      </div>
+      <div class="crack-list" id="crack-list"></div>
+    </div>
+
+    <div style="margin-top:6px;font-size:9px;color:var(--text-dim);font-family:var(--mono);line-height:1.6;">
+      <span style="color:#f5c542">&#9632;</span> kort &nbsp;
+      <span style="color:#f58a00">&#9632;</span> middel &nbsp;
+      <span style="color:#ff3333">&#9632;</span> lang
+    </div>
+  </div>
 </aside>
 
 <main id="main">
@@ -308,6 +404,7 @@
   </div>
   <div id="canvas-wrapper">
     <canvas id="mainCanvas"></canvas>
+    <canvas id="overlayCanvas"></canvas>
   </div>
   <div id="loader"><div class="spinner"></div>Laden&hellip;</div>
   <div class="zoom-bar">
@@ -590,6 +687,8 @@ function loadFile(file) {
 }
 
 function onImageLoaded() {
+  clearCracks();
+  overlayCv.width = canvas.width; overlayCv.height = canvas.height;
   document.getElementById('drop-overlay').style.display = 'none';
   document.getElementById('info-size').textContent = canvas.width + ' x ' + canvas.height + ' px';
   document.getElementById('hdr-status').textContent = canvas.width + 'x' + canvas.height;
@@ -726,6 +825,7 @@ function resetFilters() {
   document.getElementById('threshold').value = 30;
   invertOn = false;
   document.getElementById('btn-invert').classList.remove('active');
+  document.getElementById('auto-info').style.display = 'none';
   updateFilter();
 }
 
@@ -823,19 +923,345 @@ function exportPNG() {
   const filename = fname + '_' + modeLabel + '_' + ts + '.png';
 
   // Export current canvas pixels (whatever mode is active)
-  canvas.toBlob(blob => {
+  // Composite main canvas + crack overlay into a temp canvas
+  const exportCv = document.createElement('canvas');
+  exportCv.width = canvas.width; exportCv.height = canvas.height;
+  const ectx = exportCv.getContext('2d');
+  ectx.drawImage(canvas, 0, 0);
+  if (cracksFound.length) ectx.drawImage(overlayCv, 0, 0);
+
+  exportCv.toBlob(blob => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
-
-    // Flash button green briefly
     btn.classList.add('flash');
     setTimeout(() => btn.classList.remove('flash'), 800);
   }, 'image/png');
 }
+
+
+// ── AUTO-OPTIMIZE FILTERS ─────────────────────────────────────────────────
+function autoOptimize() {
+  if (!originalImageData) return;
+
+  const src = originalImageData.data;
+  const n   = originalImageData.width * originalImageData.height;
+
+  // ── Build grayscale histogram ──
+  const hist = new Int32Array(256);
+  for (let i = 0; i < n; i++) {
+    const g = Math.round(0.299 * src[i*4] + 0.587 * src[i*4+1] + 0.114 * src[i*4+2]);
+    hist[g]++;
+  }
+
+  // ── Percentile clipping for brightness/contrast (1% – 99%) ──
+  let lo = 0, hi = 255;
+  let cumSum = 0;
+  const pLo = n * 0.01, pHi = n * 0.99;
+  for (let v = 0; v < 256; v++) {
+    cumSum += hist[v];
+    if (cumSum < pLo) lo = v;
+    if (cumSum < pHi) hi = v;
+  }
+  hi = Math.max(hi, lo + 1);
+
+  // Map [lo..hi] → [0..255] via brightness + contrast
+  // After LUT: out = (in/255 * brightness - 0.5) * contrast + 0.5
+  // We want: lo → 0, hi → 1
+  // brightness = 1 / ((hi-lo)/255), offset handled by contrast shift
+  const range      = (hi - lo) / 255;
+  const brightness = Math.round(Math.min(300, Math.max(10, (1 / range) * 100)));
+  const midShift   = (lo + hi) / 2 / 255;   // original midpoint
+  const contrast   = Math.round(Math.min(400, Math.max(10, 100 / Math.max(0.01, range))));
+
+  // Gamma: use log midpoint mapping so midgray lands at 0.5
+  // after brightness/contrast correction the midgray maps to ~0.5 anyway,
+  // but we add a slight gamma tweak based on mean brightness
+  const meanG = hist.reduce((s, v, i) => s + v * i, 0) / n;
+  let gamma = 100;
+  if (meanG < 80)       gamma = 70;   // dark image → brighten midtones
+  else if (meanG > 175) gamma = 130;  // bright image → darken midtones
+
+  // ── Otsu's threshold for edge detection ──
+  const total = n;
+  let sumAll = 0;
+  for (let t = 0; t < 256; t++) sumAll += t * hist[t];
+
+  let sumB = 0, wB = 0, best = 0, otsuT = 30;
+  for (let t = 0; t < 256; t++) {
+    wB += hist[t];
+    if (!wB) continue;
+    const wF = total - wB;
+    if (!wF) break;
+    sumB += t * hist[t];
+    const mB = sumB / wB;
+    const mF = (sumAll - sumB) / wF;
+    const between = wB * wF * (mB - mF) ** 2;
+    if (between > best) { best = between; otsuT = t; }
+  }
+  // For edge maps edges are typically in the upper quartile — scale down
+  otsuT = Math.round(Math.max(5, Math.min(200, otsuT * 0.35)));
+
+  // ── Apply ──
+  document.getElementById('brightness').value = brightness;
+  document.getElementById('contrast').value   = contrast;
+  document.getElementById('gamma').value       = gamma;
+  document.getElementById('threshold').value   = otsuT;
+
+  // Flash the auto button
+  const btn = document.getElementById('btn-auto');
+  btn.classList.add('active');
+  setTimeout(() => btn.classList.remove('active'), 1200);
+
+  // Show what was detected
+  const info = document.getElementById('auto-info');
+  info.style.display = 'block';
+  info.innerHTML =
+    'Histogrambereik: ' + lo + '–' + hi + '<br>' +
+    'Helderheid: ' + brightness + '% &nbsp; Contrast: ' + contrast + '%<br>' +
+    'Gamma: ' + (gamma/100).toFixed(1) + ' &nbsp; Drempel: ' + otsuT + '<br>' +
+    '<span style="color:var(--text-dim)">Gemiddeld: ' + Math.round(meanG) + '/255</span>';
+
+  updateFilter();
+}
+
+// ── CRACK DETECTION ──────────────────────────────────────────────────────
+const overlayCv  = document.getElementById('overlayCanvas');
+const overlayCtx = overlayCv.getContext('2d');
+let cracksFound  = [];
+let selectedCrack = -1;
+
+// Sync slider labels live
+document.getElementById('crack-minlen').addEventListener('input', function() {
+  document.getElementById('val-minlen').textContent = this.value;
+});
+document.getElementById('crack-minaspect').addEventListener('input', function() {
+  document.getElementById('val-minaspect').textContent = (this.value / 10).toFixed(1);
+});
+document.getElementById('crack-boxpad').addEventListener('input', function() {
+  document.getElementById('val-boxpad').textContent = this.value;
+  if (cracksFound.length) drawCrackBoxes(cracksFound);
+});
+
+function detectCracks() {
+  if (!edgeImageData) { alert('Laad eerst een afbeelding.'); return; }
+
+  const btn = document.getElementById('crack-run-btn');
+  const lbl = document.getElementById('crack-btn-label');
+  btn.disabled = true;
+  btn.classList.add('running');
+  lbl.textContent = '⟳ Bezig…';
+
+  // Use setTimeout to allow the UI to update before heavy computation
+  setTimeout(() => {
+    try {
+      _runDetection();
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('running');
+      lbl.textContent = '▶ Analyseer scheuren';
+    }
+  }, 30);
+}
+
+function _runDetection() {
+  const threshold = parseInt(document.getElementById('threshold').value);
+  const minLen    = parseInt(document.getElementById('crack-minlen').value);
+  const minAspect = parseFloat(document.getElementById('crack-minaspect').value) / 10;
+
+  const w = edgeImageData.width;
+  const h = edgeImageData.height;
+  const ed = edgeImageData.data;
+
+  // ── Binary mask from thresholded edge image ──
+  const mask = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    mask[i] = ed[i * 4] > threshold ? 1 : 0;
+  }
+
+  // ── Connected components (BFS, typed-array queue) ──
+  const labels   = new Int32Array(w * h).fill(-1);
+  const compData = []; // { minX, minY, maxX, maxY, count }
+  let nextLabel  = 0;
+
+  // Pre-allocate queue buffer (max size = total pixels)
+  const queue = new Int32Array(w * h);
+
+  for (let startY = 0; startY < h; startY++) {
+    for (let startX = 0; startX < w; startX++) {
+      const startIdx = startY * w + startX;
+      if (mask[startIdx] === 0 || labels[startIdx] !== -1) continue;
+
+      // BFS
+      let head = 0, tail = 0;
+      queue[tail++] = startIdx;
+      labels[startIdx] = nextLabel;
+
+      let minX = startX, minY = startY, maxX = startX, maxY = startY, count = 0;
+
+      while (head < tail) {
+        const cur = queue[head++];
+        const cx  = cur % w;
+        const cy  = (cur - cx) / w;
+        count++;
+
+        if (cx < minX) minX = cx;
+        if (cx > maxX) maxX = cx;
+        if (cy < minY) minY = cy;
+        if (cy > maxY) maxY = cy;
+
+        // 8-connected neighbors for better crack continuity
+        const ny1 = cy - 1, ny2 = cy + 1;
+        const nx1 = cx - 1, nx2 = cx + 1;
+        const neighbors = [
+          cy  > 0 && cx  > 0 ? cur - w - 1 : -1,
+          cy  > 0             ? cur - w     : -1,
+          cy  > 0 && cx < w-1 ? cur - w + 1 : -1,
+          cx  > 0             ? cur - 1     : -1,
+          cx  < w - 1         ? cur + 1     : -1,
+          cy  < h-1 && cx > 0 ? cur + w - 1 : -1,
+          cy  < h - 1         ? cur + w     : -1,
+          cy  < h-1 && cx<w-1 ? cur + w + 1 : -1,
+        ];
+
+        for (const n of neighbors) {
+          if (n >= 0 && mask[n] === 1 && labels[n] === -1) {
+            labels[n] = nextLabel;
+            queue[tail++] = n;
+          }
+        }
+      }
+
+      compData.push({ minX, minY, maxX, maxY, count });
+      nextLabel++;
+    }
+  }
+
+  // ── Filter by length and aspect ratio ──
+  const cracks = [];
+  for (const c of compData) {
+    const bw     = c.maxX - c.minX + 1;
+    const bh     = c.maxY - c.minY + 1;
+    const length = Math.max(bw, bh);
+    const short  = Math.min(bw, bh);
+    const aspect = length / Math.max(1, short);
+    if (length >= minLen && aspect >= minAspect) {
+      cracks.push({ ...c, bw, bh, length, aspect,
+        cx: Math.round(c.minX + bw / 2),
+        cy: Math.round(c.minY + bh / 2) });
+    }
+  }
+
+  // Sort longest first
+  cracks.sort((a, b) => b.length - a.length);
+  cracksFound = cracks;
+  selectedCrack = -1;
+
+  drawCrackBoxes(cracks);
+  updateCrackList(cracks);
+}
+
+function severityClass(length) {
+  if (length > 200) return 'sev-high';
+  if (length > 80)  return 'sev-medium';
+  return 'sev-low';
+}
+function severityColor(length) {
+  if (length > 200) return '#ff3333';
+  if (length > 80)  return '#f58a00';
+  return '#f5c542';
+}
+
+function drawCrackBoxes(cracks) {
+  overlayCv.width  = canvas.width;
+  overlayCv.height = canvas.height;
+  overlayCtx.clearRect(0, 0, overlayCv.width, overlayCv.height);
+  if (!cracks.length) return;
+
+  const pad = parseInt(document.getElementById('crack-boxpad').value);
+
+  cracks.forEach((c, i) => {
+    const x = Math.max(0, c.minX - pad);
+    const y = Math.max(0, c.minY - pad);
+    const w = Math.min(canvas.width  - x, c.bw + pad * 2);
+    const h = Math.min(canvas.height - y, c.bh + pad * 2);
+    const col = severityColor(c.length);
+    const isSelected = i === selectedCrack;
+
+    overlayCtx.strokeStyle = col;
+    overlayCtx.lineWidth   = isSelected ? 3 : 1.5;
+    overlayCtx.setLineDash(isSelected ? [] : [4, 3]);
+    overlayCtx.strokeRect(x, y, w, h);
+
+    // Label background
+    const label = String(i + 1);
+    overlayCtx.font = 'bold 11px monospace';
+    const tw = overlayCtx.measureText(label).width + 6;
+    overlayCtx.fillStyle = col;
+    overlayCtx.fillRect(x, y - 15, tw, 14);
+    overlayCtx.fillStyle = '#000';
+    overlayCtx.fillText(label, x + 3, y - 3);
+  });
+  overlayCtx.setLineDash([]);
+}
+
+function updateCrackList(cracks) {
+  const res  = document.getElementById('crack-results');
+  const list = document.getElementById('crack-list');
+  const cnt  = document.getElementById('crack-count');
+
+  cnt.textContent = cracks.length;
+  res.classList.toggle('visible', true);
+
+  list.innerHTML = cracks.map((c, i) => {
+    const sev   = severityClass(c.length);
+    const orient = c.bw > c.bh ? 'Horizontaal' : 'Verticaal';
+    return '<div class="crack-item" id="ci-' + i + '" onclick="selectCrack(' + i + ')">'
+      + '<div class="crack-badge ' + sev + '">' + (i + 1) + '</div>'
+      + '<div class="crack-item-info">'
+      + '<div class="ci-main">' + c.length + 'px &nbsp;|&nbsp; ' + orient + '</div>'
+      + '<div class="ci-sub">pos: ' + c.cx + ',' + c.cy + ' &nbsp; ratio: ' + c.aspect.toFixed(1) + '</div>'
+      + '</div></div>';
+  }).join('');
+}
+
+function selectCrack(i) {
+  selectedCrack = i;
+  document.querySelectorAll('.crack-item').forEach((el, j) => el.classList.toggle('selected', j === i));
+  drawCrackBoxes(cracksFound);
+
+  // Zoom and pan to the selected crack
+  const c   = cracksFound[i];
+  const pad = 40;
+  const cw  = canvas.width, ch = canvas.height;
+  const roi = c.bw + pad * 2;
+  const zoomTarget = Math.min(
+    (document.getElementById('main').clientWidth  * 0.8) / roi,
+    (document.getElementById('main').clientHeight * 0.8) / roi,
+    8
+  );
+  zoom = zoomTarget;
+  applyZoom();
+
+  // Center the crack in the viewport
+  const main   = document.getElementById('main');
+  const scaleX = main.clientWidth  / 2 - (c.cx) * zoom;
+  const scaleY = main.clientHeight / 2 - (c.cy) * zoom;
+  wrapper.style.transform = 'translate(calc(-50% + ' + (scaleX - main.clientWidth/2 + main.clientWidth/2) + 'px), calc(-50% + ' + (scaleY - main.clientHeight/2 + main.clientHeight/2) + 'px)) scale(' + zoom + ')';
+  document.getElementById('zoom-label').textContent = Math.round(zoom * 100) + '%';
+}
+
+function clearCracks() {
+  cracksFound = [];
+  selectedCrack = -1;
+  overlayCtx.clearRect(0, 0, overlayCv.width, overlayCv.height);
+  document.getElementById('crack-results').classList.remove('visible');
+  document.getElementById('crack-list').innerHTML = '';
+}
+
 </script>
 </body>
 </html>
