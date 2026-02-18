@@ -2,7 +2,8 @@
 
 A single-file, offline browser tool for inspecting X-ray images of ballistic ceramic plates. Built to detect cracks and structural damage using edge detection filters and a magnifier lens — no installation, no dependencies, no internet required.
 
-![screenshot](screenshot.png)
+<img width="1900" height="846" alt="image" src="https://github.com/user-attachments/assets/d72c7575-d2ab-4291-b325-9f9411e22707" />
+
 
 ---
 
