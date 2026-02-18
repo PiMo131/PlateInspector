@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Röntgen Analyse — Kogelwerende Platen</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700&display=swap');
+
+  :root {
+    --bg: #0a0c0f;
+    --panel: #0f1318;
+    --border: #1e2630;
+    --accent: #00e5ff;
+    --accent2: #ff4444;
+    --accent3: #39ff14;
+    --text: #b8c5d0;
+    --text-dim: #4a5568;
+    --mono: 'Share Tech Mono', monospace;
+    --sans: 'Barlow Condensed', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    height: 100vh;
+    display: grid;
+    grid-template-rows: 48px 1fr;
+    grid-template-columns: 280px 1fr;
+    overflow: hidden;
+  }
+
+  header {
+    grid-column: 1 / -1;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 20px;
+  }
+  header .logo { font-family: var(--mono); font-size: 13px; color: var(--accent); letter-spacing: 3px; text-transform: uppercase; }
+  header .sep { width: 1px; height: 20px; background: var(--border); }
+  header .subtitle { font-size: 11px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; }
+  header .status { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
+  header .status span { color: var(--accent3); }
+  header .export-btn {
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 14px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--text-dim); font-family: var(--mono); font-size: 10px;
+    letter-spacing: 2px; text-transform: uppercase; cursor: pointer;
+    border-radius: 3px; transition: all 0.15s; white-space: nowrap;
+  }
+  header .export-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,229,255,0.06); }
+  header .export-btn:active { background: rgba(0,229,255,0.14); }
+  header .export-btn.flash { border-color: var(--accent3); color: var(--accent3); background: rgba(57,255,20,0.1); }
+  header .export-btn svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  aside {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .section-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dropzone {
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    padding: 24px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .dropzone:hover, .dropzone.dragover { border-color: var(--accent); background: rgba(0,229,255,0.04); }
+  .dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .dropzone .dz-icon { font-size: 28px; margin-bottom: 8px; }
+  .dropzone .dz-text { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+  .dropzone .dz-text strong { color: var(--text); }
+
+  label.ctrl { display: flex; flex-direction: column; gap: 5px; }
+  label.ctrl .lbl { font-size: 11px; letter-spacing: 1px; color: var(--text-dim); display: flex; justify-content: space-between; }
+  label.ctrl .lbl span { color: var(--text); font-family: var(--mono); }
+  input[type=range] { -webkit-appearance: none; width: 100%; height: 3px; background: var(--border); border-radius: 2px; outline: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+
+  .btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
+  .btn {
+    flex: 1; min-width: 60px; padding: 7px 8px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--text-dim); font-family: var(--mono); font-size: 10px;
+    letter-spacing: 1px; text-transform: uppercase; cursor: pointer;
+    border-radius: 3px; transition: all 0.15s; text-align: center;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.active { background: rgba(0,229,255,0.12); border-color: var(--accent); color: var(--accent); }
+  .btn.danger:hover, .btn.danger.active { border-color: var(--accent2); color: var(--accent2); background: rgba(255,68,68,0.08); }
+  .btn.success.active { border-color: var(--accent3); color: var(--accent3); background: rgba(57,255,20,0.08); }
+
+  .mode-btn {
+    display: flex; align-items: center; gap: 8px; padding: 9px 10px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--text-dim); font-family: var(--sans); font-size: 13px;
+    font-weight: 400; cursor: pointer; border-radius: 3px; transition: all 0.15s; width: 100%;
+  }
+  .mode-btn:hover { border-color: var(--accent); color: var(--text); }
+  .mode-btn.active { background: rgba(0,229,255,0.08); border-color: var(--accent); color: var(--accent); }
+  .mode-btn .dot { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid currentColor; flex-shrink: 0; }
+  .mode-btn.active .dot { background: currentColor; }
+
+  .info-box {
+    background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+    border-radius: 4px; padding: 10px; font-family: var(--mono);
+    font-size: 11px; line-height: 1.8; color: var(--text-dim);
+  }
+  .info-box .val { color: var(--text); }
+
+  .error-box {
+    background: rgba(255,68,68,0.08); border: 1px solid var(--accent2);
+    border-radius: 4px; padding: 10px; font-family: var(--mono);
+    font-size: 11px; line-height: 1.6; color: var(--accent2);
+    display: none; margin-top: 8px;
+  }
+
+  main {
+    position: relative; overflow: hidden;
+    background:
+      linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-color: #070910;
+    cursor: crosshair;
+  }
+
+  #canvas-wrapper {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(1);
+    transform-origin: center center;
+    line-height: 0;
+  }
+
+  #mainCanvas { display: block; image-rendering: pixelated; }
+
+  #drop-overlay {
+    position: absolute; inset: 0; display: flex;
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 16px; pointer-events: none;
+  }
+  #drop-overlay .big-icon { font-size: 64px; opacity: 0.15; }
+  #drop-overlay .msg { font-family: var(--mono); font-size: 13px; letter-spacing: 3px; color: var(--text-dim); text-transform: uppercase; }
+
+  #magnifier {
+    position: fixed; border-radius: 50%;
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 20px rgba(0,229,255,0.3);
+    pointer-events: none; display: none; overflow: hidden; z-index: 1000;
+    transform: translate(-50%, -50%);
+  }
+  #magnifier canvas { position: absolute; top: 0; left: 0; image-rendering: pixelated; }
+
+  .zoom-bar {
+    position: absolute; bottom: 16px; right: 16px;
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(10,12,15,0.85); border: 1px solid var(--border);
+    border-radius: 4px; padding: 6px 12px; font-family: var(--mono);
+    font-size: 11px; color: var(--text-dim); backdrop-filter: blur(6px);
+  }
+  .zoom-bar button { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; line-height: 1; transition: color 0.15s; }
+  .zoom-bar button:hover { color: var(--accent); }
+  .zoom-bar .zoom-val { color: var(--text); min-width: 42px; text-align: center; font-family: var(--mono); font-size: 11px; }
+
+  #loader {
+    position: absolute; inset: 0; display: none; align-items: center;
+    justify-content: center; background: rgba(10,12,15,0.8);
+    font-family: var(--mono); font-size: 12px; letter-spacing: 3px;
+    color: var(--accent); text-transform: uppercase; z-index: 100;
+  }
+  #loader.visible { display: flex; }
+  .spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">XRAY-ANALYZE</div>
+  <div class="sep"></div>
+  <div class="subtitle">Keramische Plaat Inspectie</div>
+  <div class="status">SYSTEEM GEREED &mdash; <span id="hdr-status">GEEN AFBEELDING</span></div>
+  <button class="export-btn" id="export-btn" onclick="exportPNG()" title="Exporteer huidig beeld als PNG">
+    <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Export PNG
+  </button>
+</header>
+
+<aside>
+  <div>
+    <div class="section-title">Bestand</div>
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="fileInput" accept=".tif,.tiff,image/*">
+      <div class="dz-icon">&#128194;</div>
+      <div class="dz-text"><strong>Sleep TIFF hier</strong><br>of klik om te openen<br><small>TIFF (8/16-bit), PNG, JPEG</small></div>
+    </div>
+    <div class="error-box" id="error-box"></div>
+  </div>
+
+  <div>
+    <div class="section-title">Weergave modus</div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <button class="mode-btn active" data-mode="original" onclick="setMode('original')"><span class="dot"></span> Origineel</button>
+      <button class="mode-btn" data-mode="edge" onclick="setMode('edge')"><span class="dot"></span> Edge Detection (Sobel)</button>
+      <button class="mode-btn" data-mode="edge2" onclick="setMode('edge2')"><span class="dot"></span> Edge + Drempel (binair)</button>
+      <button class="mode-btn" data-mode="overlay" onclick="setMode('overlay')"><span class="dot"></span> Overlay op foto</button>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title">Beeld filters</div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <label class="ctrl">
+        <div class="lbl">Helderheid <span id="val-brightness">100</span>%</div>
+        <input type="range" id="brightness" min="0" max="300" value="100" oninput="updateFilter()">
+      </label>
+      <label class="ctrl">
+        <div class="lbl">Contrast <span id="val-contrast">100</span>%</div>
+        <input type="range" id="contrast" min="0" max="400" value="100" oninput="updateFilter()">
+      </label>
+      <label class="ctrl">
+        <div class="lbl">Gamma <span id="val-gamma">1.0</span></div>
+        <input type="range" id="gamma" min="10" max="300" value="100" oninput="updateFilter()">
+      </label>
+      <div class="btn-group">
+        <button class="btn danger" id="btn-invert" onclick="toggleInvert()">Invert</button>
+        <button class="btn" onclick="resetFilters()">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title">Edge Detection</div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <label class="ctrl">
+        <div class="lbl">Drempelwaarde <span id="val-threshold">30</span></div>
+        <input type="range" id="threshold" min="1" max="255" value="30" oninput="updateFilter()">
+      </label>
+      <label class="ctrl">
+        <div class="lbl">Overlay kleur</div>
+        <div class="btn-group">
+          <button class="btn success active" id="oc-green" onclick="setOverlayColor('green')">Groen</button>
+          <button class="btn danger" id="oc-red" onclick="setOverlayColor('red')">Rood</button>
+          <button class="btn" id="oc-cyan" onclick="setOverlayColor('cyan')">Cyaan</button>
+        </div>
+      </label>
+      <label class="ctrl">
+        <div class="lbl">Vergrootglas</div>
+        <div class="btn-group">
+          <button class="btn active" id="btn-mag" onclick="toggleMagnifier()">AAN</button>
+          <button class="btn" onclick="cycleMagSize()">Grootte: <span id="mag-size">220</span></button>
+        </div>
+      </label>
+      <label class="ctrl">
+        <div class="lbl">Zoom vergrootglas <span id="val-magzoom">4</span>x</div>
+        <input type="range" id="magzoom" min="2" max="12" value="4" oninput="document.getElementById('val-magzoom').textContent=this.value">
+      </label>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title">Info</div>
+    <div class="info-box">
+      Afmeting: <span class="val" id="info-size">&#8212;</span><br>
+      Cursor: <span class="val" id="info-xy">&#8212;</span><br>
+      Pixelwaarde: <span class="val" id="info-px">&#8212;</span><br>
+      Bit-diepte: <span class="val" id="info-bits">&#8212;</span><br>
+      Bestand: <span class="val" id="info-file">&#8212;</span>
+    </div>
+    <div style="margin-top:8px;font-size:10px;color:var(--text-dim);font-family:var(--mono);line-height:1.6;">
+      Sneltoetsen: 1-4 modus | M vergrootglas | +/- scroll zoom | F passend
+    </div>
+  </div>
+</aside>
+
+<main id="main">
+  <div id="drop-overlay">
+    <div class="big-icon">&#11041;</div>
+    <div class="msg">Sleep een rontgenfoto hierheen</div>
+  </div>
+  <div id="canvas-wrapper">
+    <canvas id="mainCanvas"></canvas>
+  </div>
+  <div id="loader"><div class="spinner"></div>Laden&hellip;</div>
+  <div class="zoom-bar">
+    <button onclick="changeZoom(-0.1)">&#8722;</button>
+    <div class="zoom-val" id="zoom-label">100%</div>
+    <button onclick="changeZoom(0.1)">+</button>
+    <button onclick="resetZoom()" style="font-size:11px;font-family:var(--mono)">FIT</button>
+  </div>
+</main>
+
+<div id="magnifier"><canvas id="magCanvas"></canvas></div>
+
+<script>
+// ============================================================
+//  TIFF DECODER (geen externe library)
+//  Ondersteunt: Uncompressed (1) + LZW (5)
+//               8-bit en 16-bit, Grayscale en RGB
+// ============================================================
+class TiffDecoder {
+  constructor(buffer) {
+    this.buf   = new DataView(buffer);
+    this.bytes = new Uint8Array(buffer);
+    const sig  = this.buf.getUint16(0, false);
+    this.le    = sig === 0x4949;
+    if (sig !== 0x4949 && sig !== 0x4D4D) throw new Error('Geen geldig TIFF bestand (ongeldige byte-order)');
+    if (this.r16(2) !== 42) throw new Error('Geen geldig TIFF bestand (magic number)');
+  }
+
+  r16(o) { return this.buf.getUint16(o, this.le); }
+  r32(o) { return this.buf.getUint32(o, this.le); }
+
+  readIFD(offset) {
+    const count = this.r16(offset);
+    const tags  = {};
+    for (let i = 0; i < count; i++) {
+      const o = offset + 2 + i * 12;
+      tags[this.r16(o)] = { type: this.r16(o+2), cnt: this.r32(o+4), rawOff: o+8 };
+    }
+    return tags;
+  }
+
+  tagValues(t) {
+    if (!t) return null;
+    const typeSizes = [0,1,1,2,4,8,1,1,2,4,8,4,8];
+    const sz = typeSizes[t.type] || 1;
+    let off = t.rawOff;
+    if (t.cnt * sz > 4) off = this.r32(t.rawOff);
+    const vals = [];
+    for (let i = 0; i < t.cnt; i++) {
+      const o = off + i * sz;
+      if      (t.type === 3) vals.push(this.r16(o));
+      else if (t.type === 4) vals.push(this.r32(o));
+      else if (t.type === 5) vals.push(this.r32(o) / (this.r32(o+4) || 1));
+      else                   vals.push(this.bytes[o]);
+    }
+    return vals;
+  }
+
+  tv1(tag) { const v = this.tagValues(tag); return v ? v[0] : undefined; }
+
+  // Walk all IFDs and return the one with the largest pixel area
+  allIFDs() {
+    const ifds = [];
+    let off = this.r32(4);
+    while (off !== 0 && ifds.length < 20) {
+      const count = this.r16(off);
+      ifds.push(off);
+      off = this.r32(off + 2 + count * 12);
+    }
+    return ifds;
+  }
+
+  decode() {
+    // Pick the IFD with the largest resolution (skip thumbnails)
+    const ifdOffsets = this.allIFDs();
+    let bestOff = ifdOffsets[0];
+    let bestArea = 0;
+    for (const off of ifdOffsets) {
+      const t = this.readIFD(off);
+      const w = this.tv1(t[256]) || 0;
+      const h = this.tv1(t[257]) || 0;
+      if (w * h > bestArea) { bestArea = w * h; bestOff = off; }
+    }
+    const ifdOff = bestOff;
+    const tags   = this.readIFD(ifdOff);
+
+    const W     = this.tv1(tags[256]);
+    const H     = this.tv1(tags[257]);
+    const bps   = this.tv1(tags[258]) ?? 8;
+    const comp  = this.tv1(tags[259]) ?? 1;
+    const photo = this.tv1(tags[262]) ?? 1;
+    const spp   = this.tv1(tags[277]) ?? 1;
+
+    const offsets  = this.tagValues(tags[273]) ?? [0];
+    const byteCnts = this.tagValues(tags[279]) ?? [W * H * spp * (bps >> 3)];
+
+    // assemble raw data
+    let raw;
+    if (comp === 1) {
+      const total = byteCnts.reduce((a,b) => a+b, 0);
+      raw = new Uint8Array(total);
+      let pos = 0;
+      for (let s = 0; s < offsets.length; s++) {
+        raw.set(this.bytes.subarray(offsets[s], offsets[s] + byteCnts[s]), pos);
+        pos += byteCnts[s];
+      }
+    } else if (comp === 5) {
+      const parts = offsets.map((o, s) => this.lzwDecode(this.bytes.subarray(o, o + byteCnts[s])));
+      const total = parts.reduce((a,b) => a+b.length, 0);
+      raw = new Uint8Array(total);
+      let pos = 0;
+      for (const p of parts) { raw.set(p, pos); pos += p.length; }
+    } else {
+      throw new Error(`Compressie type ${comp} wordt niet ondersteund. Exporteer als ongecomprimeerde TIFF.`);
+    }
+
+    // to RGBA8
+    const rgba = new Uint8ClampedArray(W * H * 4);
+    const max  = (1 << bps) - 1;
+
+    const get16 = (i) => this.le
+      ? (raw[i*2+1] << 8 | raw[i*2])
+      : (raw[i*2]   << 8 | raw[i*2+1]);
+
+    if (spp === 1) {
+      for (let i = 0; i < W * H; i++) {
+        let v = bps === 16 ? get16(i) : raw[i];
+        let g = Math.round(v / max * 255);
+        if (photo === 0) g = 255 - g;
+        rgba[i*4] = rgba[i*4+1] = rgba[i*4+2] = g;
+        rgba[i*4+3] = 255;
+      }
+    } else {
+      for (let i = 0; i < W * H; i++) {
+        for (let c = 0; c < 3; c++) {
+          const idx = i * spp + c;
+          const v   = bps === 16 ? get16(idx) : raw[idx];
+          rgba[i*4+c] = Math.round(v / max * 255);
+        }
+        rgba[i*4+3] = 255;
+      }
+    }
+
+    const totalIFDs = ifdOffsets.length;
+    return { width: W, height: H, rgba, bitsPerSample: bps, totalIFDs, ifdOff: bestOff };
+  }
+
+  // LZW decoder (TIFF flavour, MSB-first, clear=256, eoi=257)
+  lzwDecode(input) {
+    const out = [];
+    let bitBuf = 0, bits = 0, codeLen = 9, pos = 0;
+    const table = [];
+
+    const reset = () => {
+      table.length = 0;
+      for (let i = 0; i < 256; i++) table[i] = new Uint8Array([i]);
+      table[256] = null; table[257] = null;
+      codeLen = 9;
+    };
+    reset();
+
+    const readCode = () => {
+      while (bits < codeLen) {
+        if (pos >= input.length) return 257;
+        bitBuf = (bitBuf << 8) | input[pos++];
+        bits  += 8;
+      }
+      bits -= codeLen;
+      return (bitBuf >> bits) & ((1 << codeLen) - 1);
+    };
+
+    let prev = null;
+    while (true) {
+      const code = readCode();
+      if (code === 257) break;
+      if (code === 256) { reset(); prev = null; continue; }
+
+      let entry;
+      if (table[code] != null) {
+        entry = table[code];
+      } else {
+        // code not yet in table
+        entry = new Uint8Array([...prev, prev[0]]);
+      }
+
+      for (const b of entry) out.push(b);
+
+      if (prev !== null) {
+        const newEntry = new Uint8Array([...prev, entry[0]]);
+        table.push(newEntry);
+        if (table.length >= (1 << codeLen) - 1 && codeLen < 12) codeLen++;
+      }
+      prev = entry;
+    }
+    return new Uint8Array(out);
+  }
+}
+
+// ============================================================
+//  APP
+// ============================================================
+let originalImageData = null;
+let processedImageData = null;
+let edgeImageData = null;
+let currentMode  = 'original';
+let invertOn     = false;
+let overlayColor = 'green';
+let magEnabled   = true;
+let magSize      = 220;
+const magSizes   = [160, 220, 300];
+let magSizeIdx   = 1;
+let zoom = 1.0;
+
+const canvas  = document.getElementById('mainCanvas');
+const ctx     = canvas.getContext('2d');
+const magDiv  = document.getElementById('magnifier');
+const magCv   = document.getElementById('magCanvas');
+const magCtx  = magCv.getContext('2d');
+const wrapper = document.getElementById('canvas-wrapper');
+const mainEl  = document.getElementById('main');
+
+// File handling
+document.getElementById('fileInput').addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+
+const dz = document.getElementById('dropzone');
+mainEl.addEventListener('dragover', e => e.preventDefault());
+mainEl.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
+
+function showError(msg) {
+  const b = document.getElementById('error-box');
+  b.textContent = 'Fout: ' + msg;
+  b.style.display = 'block';
+}
+function clearError() { document.getElementById('error-box').style.display = 'none'; }
+
+function loadFile(file) {
+  clearError();
+  showLoader(true);
+  const name = file.name;
+  document.getElementById('info-file').textContent = name.length > 24 ? name.slice(0,22) + '...' : name;
+  const ext = name.split('.').pop().toLowerCase();
+  const reader = new FileReader();
+
+  if (ext === 'tif' || ext === 'tiff') {
+    reader.onload = e => {
+      try {
+        const dec  = new TiffDecoder(e.target.result);
+        const info = dec.decode();
+        canvas.width = info.width; canvas.height = info.height;
+        const id = ctx.createImageData(info.width, info.height);
+        id.data.set(info.rgba);
+        ctx.putImageData(id, 0, 0);
+        originalImageData = ctx.getImageData(0, 0, info.width, info.height);
+        document.getElementById('info-bits').textContent = info.bitsPerSample + '-bit' + (info.totalIFDs > 1 ? ' (' + info.totalIFDs + ' lagen, beste geladen)' : '');
+        onImageLoaded();
+      } catch(err) {
+        showLoader(false);
+        showError(err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+        ctx.drawImage(img, 0, 0);
+        originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        document.getElementById('info-bits').textContent = '8-bit';
+        onImageLoaded();
+      };
+      img.onerror = () => { showLoader(false); showError('Kan afbeelding niet laden.'); };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function onImageLoaded() {
+  document.getElementById('drop-overlay').style.display = 'none';
+  document.getElementById('info-size').textContent = canvas.width + ' x ' + canvas.height + ' px';
+  document.getElementById('hdr-status').textContent = canvas.width + 'x' + canvas.height;
+  fitToScreen();
+  updateFilter();
+  showLoader(false);
+}
+
+// ── Processing ───────────────────────────────
+function updateFilter() {
+  if (!originalImageData) return;
+
+  const brightness = parseFloat(document.getElementById('brightness').value) / 100;
+  const contrast   = parseFloat(document.getElementById('contrast').value) / 100;
+  const gammaIn    = parseFloat(document.getElementById('gamma').value) / 100;
+  const threshold  = parseInt(document.getElementById('threshold').value);
+
+  document.getElementById('val-brightness').textContent = document.getElementById('brightness').value;
+  document.getElementById('val-contrast').textContent   = document.getElementById('contrast').value;
+  document.getElementById('val-gamma').textContent      = gammaIn.toFixed(1);
+  document.getElementById('val-threshold').textContent  = threshold;
+
+  const src = originalImageData.data;
+  const w   = originalImageData.width;
+  const h   = originalImageData.height;
+  const proc = new Uint8ClampedArray(src.length);
+
+  // Build LUT
+  const lut = new Uint8ClampedArray(256);
+  for (let i = 0; i < 256; i++) {
+    let v = i / 255;
+    v = Math.pow(v, 1 / gammaIn);
+    v *= brightness;
+    v = (v - 0.5) * contrast + 0.5;
+    v = Math.max(0, Math.min(1, v));
+    if (invertOn) v = 1 - v;
+    lut[i] = Math.round(v * 255);
+  }
+
+  for (let i = 0; i < src.length; i += 4) {
+    proc[i]   = lut[src[i]];
+    proc[i+1] = lut[src[i+1]];
+    proc[i+2] = lut[src[i+2]];
+    proc[i+3] = src[i+3];
+  }
+  processedImageData = new ImageData(proc, w, h);
+
+  // Grayscale
+  const gray = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    gray[i] = 0.299 * proc[i*4] + 0.587 * proc[i*4+1] + 0.114 * proc[i*4+2];
+  }
+
+  // Sobel
+  const edgeG = new Float32Array(w * h);
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const p = (r, c) => gray[r * w + c];
+      const gx = -p(y-1,x-1) + p(y-1,x+1) - 2*p(y,x-1) + 2*p(y,x+1) - p(y+1,x-1) + p(y+1,x+1);
+      const gy = -p(y-1,x-1) - 2*p(y-1,x) - p(y-1,x+1) + p(y+1,x-1) + 2*p(y+1,x) + p(y+1,x+1);
+      edgeG[y * w + x] = Math.sqrt(gx*gx + gy*gy);
+    }
+  }
+
+  let maxE = 0;
+  for (let i = 0; i < edgeG.length; i++) if (edgeG[i] > maxE) maxE = edgeG[i];
+  if (maxE === 0) maxE = 1;
+
+  const ed = new Uint8ClampedArray(w * h * 4);
+  for (let i = 0; i < w * h; i++) {
+    const v = Math.round(edgeG[i] / maxE * 255);
+    ed[i*4] = ed[i*4+1] = ed[i*4+2] = v;
+    ed[i*4+3] = 255;
+  }
+  edgeImageData = new ImageData(ed, w, h);
+
+  renderMode();
+}
+
+function renderMode() {
+  if (!originalImageData) return;
+  const w = canvas.width, h = canvas.height;
+  const thr = parseInt(document.getElementById('threshold').value);
+
+  if (currentMode === 'original') {
+    ctx.putImageData(processedImageData, 0, 0);
+  } else if (currentMode === 'edge') {
+    ctx.putImageData(edgeImageData, 0, 0);
+  } else if (currentMode === 'edge2') {
+    const s = edgeImageData.data;
+    const b = new Uint8ClampedArray(s.length);
+    for (let i = 0; i < s.length; i += 4) {
+      const v = s[i] > thr ? 255 : 0;
+      b[i] = b[i+1] = b[i+2] = v; b[i+3] = 255;
+    }
+    ctx.putImageData(new ImageData(b, w, h), 0, 0);
+  } else if (currentMode === 'overlay') {
+    ctx.putImageData(processedImageData, 0, 0);
+    const s  = edgeImageData.data;
+    const ov = ctx.createImageData(w, h);
+    const od = ov.data;
+    const [or, og, ob] = overlayColor === 'red' ? [255,0,0] : overlayColor === 'cyan' ? [0,220,255] : [0,255,60];
+    for (let i = 0; i < s.length; i += 4) {
+      if (s[i] > thr) {
+        od[i] = or; od[i+1] = og; od[i+2] = ob;
+        od[i+3] = Math.min(255, s[i] * 2);
+      }
+    }
+    ctx.putImageData(ov, 0, 0);
+  }
+}
+
+// ── UI ───────────────────────────────────────
+function setMode(m) {
+  currentMode = m;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
+  renderMode();
+}
+
+function toggleInvert() {
+  invertOn = !invertOn;
+  document.getElementById('btn-invert').classList.toggle('active', invertOn);
+  updateFilter();
+}
+
+function setOverlayColor(c) {
+  overlayColor = c;
+  ['green','red','cyan'].forEach(x => document.getElementById('oc-'+x).classList.toggle('active', x === c));
+  renderMode();
+}
+
+function resetFilters() {
+  ['brightness','contrast','gamma'].forEach((id, i) => document.getElementById(id).value = [100,100,100][i]);
+  document.getElementById('threshold').value = 30;
+  invertOn = false;
+  document.getElementById('btn-invert').classList.remove('active');
+  updateFilter();
+}
+
+// ── Magnifier ────────────────────────────────
+function toggleMagnifier() {
+  magEnabled = !magEnabled;
+  const btn = document.getElementById('btn-mag');
+  btn.textContent = magEnabled ? 'AAN' : 'UIT';
+  btn.classList.toggle('active', magEnabled);
+  if (!magEnabled) magDiv.style.display = 'none';
+}
+
+function cycleMagSize() {
+  magSizeIdx = (magSizeIdx + 1) % magSizes.length;
+  magSize = magSizes[magSizeIdx];
+  document.getElementById('mag-size').textContent = magSize;
+}
+
+mainEl.addEventListener('mousemove', e => {
+  if (!magEnabled || !originalImageData) { magDiv.style.display = 'none'; return; }
+
+  magDiv.style.display = 'block';
+  magDiv.style.left = e.clientX + 'px';
+  magDiv.style.top  = e.clientY + 'px';
+  magDiv.style.width = magDiv.style.height = magSize + 'px';
+
+  const rect = canvas.getBoundingClientRect();
+  const cx = (e.clientX - rect.left) / zoom;
+  const cy = (e.clientY - rect.top)  / zoom;
+
+  document.getElementById('info-xy').textContent = Math.round(cx) + ', ' + Math.round(cy);
+
+  if (processedImageData && cx >= 0 && cy >= 0 && cx < canvas.width && cy < canvas.height) {
+    const idx = (Math.floor(cy) * canvas.width + Math.floor(cx)) * 4;
+    const d = processedImageData.data;
+    document.getElementById('info-px').textContent = 'R:' + d[idx] + ' G:' + d[idx+1] + ' B:' + d[idx+2];
+  }
+
+  const mz   = parseInt(document.getElementById('magzoom').value);
+  const half = magSize / 2;
+  magCv.width = magCv.height = magSize;
+
+  magCtx.save();
+  magCtx.beginPath();
+  magCtx.arc(half, half, half, 0, Math.PI * 2);
+  magCtx.clip();
+  magCtx.imageSmoothingEnabled = false;
+  magCtx.drawImage(canvas, cx - half/mz, cy - half/mz, magSize/mz, magSize/mz, 0, 0, magSize, magSize);
+  // crosshair
+  magCtx.strokeStyle = 'rgba(0,229,255,0.45)';
+  magCtx.lineWidth = 1;
+  magCtx.beginPath(); magCtx.moveTo(half, 0); magCtx.lineTo(half, magSize); magCtx.stroke();
+  magCtx.beginPath(); magCtx.moveTo(0, half); magCtx.lineTo(magSize, half); magCtx.stroke();
+  magCtx.restore();
+});
+
+mainEl.addEventListener('mouseleave', () => { magDiv.style.display = 'none'; });
+
+// ── Zoom ─────────────────────────────────────
+function changeZoom(d) { zoom = Math.max(0.05, Math.min(10, zoom + d)); applyZoom(); }
+function resetZoom() { fitToScreen(); }
+function fitToScreen() {
+  if (!originalImageData) return;
+  zoom = Math.min((mainEl.clientWidth - 40) / canvas.width, (mainEl.clientHeight - 40) / canvas.height, 1);
+  applyZoom();
+}
+function applyZoom() {
+  wrapper.style.transform = 'translate(-50%, -50%) scale(' + zoom + ')';
+  document.getElementById('zoom-label').textContent = Math.round(zoom * 100) + '%';
+}
+
+mainEl.addEventListener('wheel', e => { e.preventDefault(); changeZoom(e.deltaY < 0 ? 0.1 : -0.1); }, { passive: false });
+
+document.addEventListener('keydown', e => {
+  if (e.key === '1') setMode('original');
+  if (e.key === '2') setMode('edge');
+  if (e.key === '3') setMode('edge2');
+  if (e.key === '4') setMode('overlay');
+  if (e.key === 'm' || e.key === 'M') toggleMagnifier();
+  if (e.key === '+' || e.key === '=') changeZoom(0.15);
+  if (e.key === '-') changeZoom(-0.15);
+  if (e.key === 'f' || e.key === 'F') fitToScreen();
+});
+
+function showLoader(v) { document.getElementById('loader').classList.toggle('visible', v); }
+
+function exportPNG() {
+  if (!originalImageData) return;
+  const btn = document.getElementById('export-btn');
+
+  // Build filename: original filename + current mode + timestamp
+  const fname = document.getElementById('info-file').textContent.replace(/\.\w+$/, '') || 'xray';
+  const modeLabel = { original: 'original', edge: 'sobel', edge2: 'threshold', overlay: 'overlay' }[currentMode];
+  const ts = new Date().toISOString().slice(0,19).replace(/[:\-T]/g, '').replace('T','_');
+  const filename = fname + '_' + modeLabel + '_' + ts + '.png';
+
+  // Export current canvas pixels (whatever mode is active)
+  canvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    // Flash button green briefly
+    btn.classList.add('flash');
+    setTimeout(() => btn.classList.remove('flash'), 800);
+  }, 'image/png');
+}
+</script>
+</body>
+</html>
