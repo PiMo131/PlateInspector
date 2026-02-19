@@ -1058,15 +1058,20 @@ function applyColormap(grayData, w, h, mapName) {
 // ── Web Worker (inline Blob) ──────────────────
 const _workerSrc = `
 self.onmessage = function(e) {
+  try {
   const { srcPixels, w, h, lut, blurSigma, claheEnabled, clipLimit, tileN, cannyLo, cannyHi } = e.data;
 
+  // srcPixels arrives as a transferred ArrayBuffer — wrap it in a typed view
+  const src  = new Uint8ClampedArray(srcPixels);
+  const lutV = new Uint8ClampedArray(lut);      // lut is also an ArrayBuffer after transfer
+
   // Apply LUT to get processed RGBA
-  const proc = new Uint8ClampedArray(srcPixels.length);
-  for (let i = 0; i < srcPixels.length; i += 4) {
-    proc[i]   = lut[srcPixels[i]];
-    proc[i+1] = lut[srcPixels[i+1]];
-    proc[i+2] = lut[srcPixels[i+2]];
-    proc[i+3] = srcPixels[i+3];
+  const proc = new Uint8ClampedArray(src.length);
+  for (let i = 0; i < src.length; i += 4) {
+    proc[i]   = lutV[src[i]];
+    proc[i+1] = lutV[src[i+1]];
+    proc[i+2] = lutV[src[i+2]];
+    proc[i+3] = src[i+3];
   }
 
   // Grayscale
@@ -1186,6 +1191,9 @@ self.onmessage = function(e) {
     { proc: proc.buffer, edge: edRGBA.buffer, canny: canRGBA.buffer, w, h },
     [ proc.buffer, edRGBA.buffer, canRGBA.buffer ]
   );
+  } catch(err) {
+    self.postMessage({ error: err.message });
+  }
 };
 `;
 
@@ -1205,6 +1213,13 @@ function _getWorker() {
 }
 
 function _onWorkerResult(e) {
+  if (e.data.error) {
+    console.error('Worker fout:', e.data.error);
+    _workerBusy = false;
+    setProcBadge(false);
+    if (_pendingJob) { const j = _pendingJob; _pendingJob = null; _dispatchWorker(j); }
+    return;
+  }
   const { proc, edge, canny: can, w, h } = e.data;
   processedImageData = new ImageData(new Uint8ClampedArray(proc), w, h);
   edgeImageData      = new ImageData(new Uint8ClampedArray(edge), w, h);
@@ -1212,7 +1227,6 @@ function _onWorkerResult(e) {
   _workerBusy = false;
   setProcBadge(false);
   renderMode();
-  // If a new job was queued while we were busy, run it now
   if (_pendingJob) { const j = _pendingJob; _pendingJob = null; _dispatchWorker(j); }
 }
 
@@ -1223,9 +1237,10 @@ function _dispatchWorker(params) {
   const w  = originalImageData.width, h = originalImageData.height;
   // Copy source pixels (transferable)
   const srcCopy = new Uint8ClampedArray(originalImageData.data);
+  const lutCopy = new Uint8ClampedArray(params.lut);  // ensure we have a copy to transfer
   _getWorker().postMessage(
-    { srcPixels: srcCopy.buffer, w, h, ...params },
-    [ srcCopy.buffer ]
+    { srcPixels: srcCopy.buffer, w, h, ...params, lut: lutCopy.buffer },
+    [ srcCopy.buffer, lutCopy.buffer ]
   );
 }
 
@@ -1289,7 +1304,7 @@ function updateFilter() {
 }
 
 function renderMode() {
-  if (!originalImageData) return;
+  if (!originalImageData || !processedImageData || !edgeImageData) return;
   const w = canvas.width, h = canvas.height;
   const thr = parseInt(document.getElementById('threshold').value);
 
